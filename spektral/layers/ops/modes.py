@@ -91,8 +91,8 @@ def autodetect_mode(x, a):
     :param a: Tensor or SparseTensor representing the adjacency matrix(s)
     :return: mode of operation as an integer code.
     """
-    x_ndim = K.ndim(x)
-    a_ndim = K.ndim(a)
+    x_ndim = len(x.shape)
+    a_ndim = len(a.shape)
     if x_ndim == 2 and a_ndim == 2:
         return SINGLE
     elif x_ndim == 3 and a_ndim == 3:
