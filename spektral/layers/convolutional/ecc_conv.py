@@ -179,8 +179,10 @@ class ECCConv(Conv):
             output += K.dot(x, self.root_kernel)
         if self.use_bias:
             output = K.bias_add(output, self.bias)
-        if mask is not None:
-            output *= mask[0]
+
+        # No idea why they added this or why this doesn't work as expected (passing `None` to `mask` doesn't make it None. It makes it [None]*3, which makes it think that there's a mask.
+        # if mask is not None:
+        #     output *= mask[0]
         output = self.activation(output)
 
         return output
