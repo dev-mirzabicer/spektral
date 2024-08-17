@@ -166,8 +166,13 @@ class DiffusionConv(Conv):
         x, a = inputs
         output = self.apply_filters(x, a)
 
-        if mask is not None:
-            output *= mask[0]
+        # this doesn't work as expected (passing `None` to `mask` doesn't make it None. It makes it [None]*3, which makes it think that there's a mask.
+        mask_none = tf.where(mask != None and mask != 'None')
+        if mask is not None and mask_none.shape[0] is not None and mask_none.shape[0] > 0:
+            try:
+                output *= tf.cast(mask[0], tf.float32)
+            except ValueError:
+                output = output # pass
         output = self.activation(output)
 
         return output
