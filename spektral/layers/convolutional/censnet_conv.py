@@ -155,7 +155,7 @@ class CensNetConv(Conv):
             )
         self.built = True
 
-    def _bias_and_activation(self, pre_activation, *, bias_weights, =None):
+    def _bias_and_activation(self, pre_activation, *, bias_weights, mask=None):
         """
         Applies the bias, activation, and , if necessary.
 
