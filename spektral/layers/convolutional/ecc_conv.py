@@ -180,9 +180,9 @@ class ECCConv(Conv):
         if self.use_bias:
             output = K.bias_add(output, self.bias)
 
-        # No idea why they added this or why this doesn't work as expected (passing `None` to `mask` doesn't make it None. It makes it [None]*3, which makes it think that there's a mask.
-        # if mask is not None:
-        #     output *= mask[0]
+        # this doesn't work as expected (passing `None` to `mask` doesn't make it None. It makes it [None]*3, which makes it think that there's a mask.
+        if mask is not None or len(tf.where(mask != None)) > 0:
+            output *= mask[0]
         output = self.activation(output)
 
         return output
