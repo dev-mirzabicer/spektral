@@ -181,7 +181,8 @@ class ECCConv(Conv):
             output = K.bias_add(output, self.bias)
 
         # this doesn't work as expected (passing `None` to `mask` doesn't make it None. It makes it [None]*3, which makes it think that there's a mask.
-        if mask is not None and tf.where(mask != None).shape[0] > 0:
+        mask_none = tf.where(mask != None and mask != 'None')
+        if mask is not None and mask_none.shape[0] is not None and mask_none.shape[0] > 0:
             try:
                 output *= tf.cast(mask[0], tf.float32)
             except ValueError:
