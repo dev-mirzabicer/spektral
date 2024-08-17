@@ -1,6 +1,7 @@
 from tensorflow.keras import activations
 from tensorflow.keras.layers import Dense, Dropout
 from tensorflow.keras.models import Sequential
+import tensorflow as tf
 
 from spektral.layers import ops
 from spektral.layers.convolutional.conv import Conv
