@@ -126,8 +126,8 @@ class ChebConv(Conv):
 
         if self.use_bias:
             output = KB.bias_add(output, self.bias)
-        if mask is not None:
-            output *= mask[0]
+        if mask is not None or len(tf.where(mask != None)) > 0:
+            output *= tf.cast(mask[0], tf.float32)
         output = self.activation(output)
 
         return output
