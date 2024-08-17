@@ -1,4 +1,5 @@
 from tensorflow.keras import backend as K
+import tensorflow as tf
 
 from spektral.layers import ops
 from spektral.layers.convolutional.conv import Conv
