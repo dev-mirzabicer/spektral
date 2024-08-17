@@ -1,6 +1,7 @@
 from tensorflow.keras import activations
 from tensorflow.keras import backend as K
 from tensorflow.keras.layers import Dropout
+import tensorflow as tf
 
 from spektral.layers import ops
 from spektral.layers.convolutional.conv import Conv
