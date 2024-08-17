@@ -155,9 +155,9 @@ class CensNetConv(Conv):
             )
         self.built = True
 
-    def _bias_and_activation(self, pre_activation, *, bias_weights, mask=None):
+    def _bias_and_activation(self, pre_activation, *, bias_weights, =None):
         """
-        Applies the bias, activation, and mask, if necessary.
+        Applies the bias, activation, and , if necessary.
 
         :param pre_activation: The layer output, pre-activation.
         :param bias_weights: The weights to use for the bias.
@@ -168,8 +168,13 @@ class CensNetConv(Conv):
         if self.use_bias:
             # Apply the bias if needed.
             pre_activation = tf.nn.bias_add(pre_activation, bias_weights)
-        if mask is not None:
-            pre_activation *= mask[0]
+        # this doesn't work as expected (passing `None` to `mask` doesn't make it None. It makes it [None]*3, which makes it think that there's a mask.
+        mask_none = tf.where(mask != None and mask != 'None')
+        if mask is not None and mask_none.shape[0] is not None and mask_none.shape[0] > 0:
+            try:
+                output *= tf.cast(mask[0], tf.float32)
+            except ValueError:
+                output = output # pass
         return self.activation(pre_activation)
 
     def _propagate_nodes(self, inputs, mask=None):
