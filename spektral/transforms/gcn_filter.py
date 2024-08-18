@@ -19,8 +19,8 @@ class GCNFilter:
     def __init__(self, symmetric=True):
         self.symmetric = symmetric
 
-    def __call__(self, graph):
-        if graph.a is not None:
-            graph.a = gcn_filter(graph.a, self.symmetric)
+    def __call__(self, a):
+        if a is not None:
+            a = gcn_filter(a, self.symmetric)
 
-        return graph
+        return a
