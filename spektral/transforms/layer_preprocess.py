@@ -12,8 +12,8 @@ class LayerPreprocess(object):
     def __init__(self, layer_class):
         self.layer_class = layer_class
 
-    def __call__(self, graph):
-        if graph.a is not None and hasattr(self.layer_class, "preprocess"):
-            graph.a = self.layer_class.preprocess(graph.a)
+    def __call__(self, a):
+        if a is not None and hasattr(self.layer_class, "preprocess"):
+            a = self.layer_class.preprocess(a)
 
-        return graph
+        return a
