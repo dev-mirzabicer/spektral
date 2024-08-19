@@ -132,9 +132,9 @@ def gcn_filter_tf(A, symmetric=True):
         
         # Create sparse diagonal matrix
         D_inv_sqrt_mat = tf.sparse.SparseTensor(
-            indices=tf.stack([tf.range(A.shape[0]), tf.range(A.shape[0])], axis=1),
+            indices=tf.cast(tf.stack([tf.range(A.shape[0]), tf.range(A.shape[0])], axis=1), tf.int64),
             values=D_inv_sqrt,
-            dense_shape=[A.shape[0], A.shape[0]]
+            dense_shape=tf.cast(A.shape, tf.int64)
         )
         
         # Compute D^(-1/2) A D^(-1/2)
@@ -146,9 +146,9 @@ def gcn_filter_tf(A, symmetric=True):
         
         # Create sparse diagonal matrix
         D_inv_mat = tf.sparse.SparseTensor(
-            indices=tf.stack([tf.range(A.shape[0]), tf.range(A.shape[0])], axis=1),
+            indices=tf.cast(tf.stack([tf.range(A.shape[0]), tf.range(A.shape[0])], axis=1), tf.int64),
             values=D_inv,
-            dense_shape=[A.shape[0], A.shape[0]]
+            dense_shape=tf.cast(A.shape, tf.int64)
         )
         
         # Compute D^(-1) A
