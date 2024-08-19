@@ -129,18 +129,30 @@ def gcn_filter_tf(A, symmetric=True):
         # Compute D^(-1/2)
         D_inv_sqrt = tf.pow(D, -0.5)
         D_inv_sqrt = tf.where(tf.math.is_inf(D_inv_sqrt), tf.zeros_like(D_inv_sqrt), D_inv_sqrt)
-        D_inv_sqrt = tf.sparse.from_diagonal(D_inv_sqrt)
+        
+        # Create sparse diagonal matrix
+        D_inv_sqrt_mat = tf.sparse.SparseTensor(
+            indices=tf.stack([tf.range(A.shape[0]), tf.range(A.shape[0])], axis=1),
+            values=D_inv_sqrt,
+            dense_shape=[A.shape[0], A.shape[0]]
+        )
         
         # Compute D^(-1/2) A D^(-1/2)
-        return tf.sparse.sparse_dense_matmul(tf.sparse.sparse_dense_matmul(D_inv_sqrt, A_loop), D_inv_sqrt)
+        return tf.sparse.sparse_dense_matmul(tf.sparse.sparse_dense_matmul(D_inv_sqrt_mat, A_loop), D_inv_sqrt_mat)
     else:
         # Compute D^(-1)
         D_inv = tf.pow(D, -1)
         D_inv = tf.where(tf.math.is_inf(D_inv), tf.zeros_like(D_inv), D_inv)
-        D_inv = tf.sparse.from_diagonal(D_inv)
+        
+        # Create sparse diagonal matrix
+        D_inv_mat = tf.sparse.SparseTensor(
+            indices=tf.stack([tf.range(A.shape[0]), tf.range(A.shape[0])], axis=1),
+            values=D_inv,
+            dense_shape=[A.shape[0], A.shape[0]]
+        )
         
         # Compute D^(-1) A
-        return tf.sparse.sparse_dense_matmul(D_inv, A_loop)
+        return tf.sparse.sparse_dense_matmul(D_inv_mat, A_loop)
 
 def gcn_filter(A, symmetric=True):
     r"""
