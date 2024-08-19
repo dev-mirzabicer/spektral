@@ -110,6 +110,37 @@ def rescale_laplacian(L, lmax=None):
     L_scaled = (2.0 / lmax) * L - I
     return L_scaled
 
+def gcn_filter_tf(A, symmetric=True):
+    """
+    Computes the graph filter described in Kipf & Welling (2017) for a tf.SparseTensor.
+    
+    :param A: tf.SparseTensor with rank 2
+    :param symmetric: boolean, whether to normalize the matrix as D^(-1/2)AD^(-1/2) or as D^(-1)A
+    :return: tf.SparseTensor
+    """
+    # Add self-loops
+    eye = tf.sparse.eye(A.shape[0], dtype=A.dtype)
+    A_loop = tf.sparse.add(A, eye)
+    
+    # Compute degree matrix
+    D = tf.sparse.reduce_sum(A_loop, axis=1)
+    
+    if symmetric:
+        # Compute D^(-1/2)
+        D_inv_sqrt = tf.pow(D, -0.5)
+        D_inv_sqrt = tf.where(tf.math.is_inf(D_inv_sqrt), tf.zeros_like(D_inv_sqrt), D_inv_sqrt)
+        D_inv_sqrt = tf.sparse.from_diagonal(D_inv_sqrt)
+        
+        # Compute D^(-1/2) A D^(-1/2)
+        return tf.sparse.sparse_dense_matmul(tf.sparse.sparse_dense_matmul(D_inv_sqrt, A_loop), D_inv_sqrt)
+    else:
+        # Compute D^(-1)
+        D_inv = tf.pow(D, -1)
+        D_inv = tf.where(tf.math.is_inf(D_inv), tf.zeros_like(D_inv), D_inv)
+        D_inv = tf.sparse.from_diagonal(D_inv)
+        
+        # Compute D^(-1) A
+        return tf.sparse.sparse_dense_matmul(D_inv, A_loop)
 
 def gcn_filter(A, symmetric=True):
     r"""
@@ -120,6 +151,8 @@ def gcn_filter(A, symmetric=True):
     \(\D^{-\frac{1}{2}}\A\D^{-\frac{1}{2}}\) or as \(\D^{-1}\A\);
     :return: array or sparse matrix with rank 2 or 3, same as A;
     """
+    if isinstance(A, tf.sparse.SparseTensor):
+        return gcn_filter_tf(A, symmetric)
     out = copy.deepcopy(A)
     if isinstance(A, list) or (isinstance(A, np.ndarray) and A.ndim == 3):
         for i in range(len(A)):
