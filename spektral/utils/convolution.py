@@ -128,7 +128,7 @@ def laplacian(A):
     :return: the Laplacian.
     """
     if isinstance(A, tf.sparse.SparseTensor):
-        return degree_matrix_tf(A) - A
+        return tf.sparse.add(degree_matrix_tf(A), tf.sparse.map_values(tf.negative, A))
     return degree_matrix(A) - A
 
 def normalized_laplacian_tf(A, symmetric=True):
@@ -145,7 +145,7 @@ def normalized_laplacian_tf(A, symmetric=True):
     n = tf.shape(A)[0]
     I = tf.sparse.eye(n, dtype=A.dtype)
     normalized_adj = normalized_adjacency_tf(A, symmetric=symmetric)
-    return I - normalized_adj
+    return tf.sparse.add(I, tf.sparse.map_values(tf.negative, normalized_adj))
 
 def normalized_laplacian(A, symmetric=True):
     r"""
@@ -501,7 +501,7 @@ def chebyshev_filter_tf(A, k, symmetric=True):
     normalized_adj = normalized_adjacency_tf(A, symmetric)
     n = tf.shape(A)[0]
     I = tf.sparse.eye(n, dtype=A.dtype)
-    L = I - normalized_adj  # Compute Laplacian
+    L = tf.sparse.add(I, tf.sparse.map_values(tf.negative, normalized_adj))  # Compute Laplacian
 
     # Rescale Laplacian
     L_scaled = rescale_laplacian_tf(L)
@@ -516,7 +516,8 @@ def rescale_laplacian_tf(L):
     Rescale the Laplacian eigenvalues to [-1, 1].
     """
     max_eigenval = tf.sparse.reduce_max(L)
-    return (2.0 * L / max_eigenval) - tf.sparse.eye(tf.shape(L)[0], dtype=L.dtype)
+    scaled_L = tf.sparse.map_values(lambda x: 2.0 * x / max_eigenval, L)
+    return tf.sparse.add(scaled_L, tf.sparse.map_values(tf.negative, tf.sparse.eye(tf.shape(L)[0], dtype=L.dtype)))
 
 def add_self_loops(a, value=1):
     """
