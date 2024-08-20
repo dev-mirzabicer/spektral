@@ -16,6 +16,8 @@ def degree_matrix(A):
     :return: if A is a dense array, a dense array; if A is sparse, a sparse
     matrix in DIA format.
     """
+    if isinstance(A, tf.sparse.SparseTensor):
+        return degree_matrix_tf(A)
     degrees = np.array(A.sum(1)).flatten()
     if sp.issparse(A):
         D = sp.diags(degrees)
@@ -23,6 +25,25 @@ def degree_matrix(A):
         D = np.diag(degrees)
     return D
 
+def degree_matrix_tf(A):
+    """
+    TensorFlow implementation of degree_matrix for SparseTensor input.
+    
+    :param A: tf.sparse.SparseTensor, the input adjacency matrix
+    :return: tf.sparse.SparseTensor, the degree matrix
+    """
+    if not isinstance(A, tf.sparse.SparseTensor):
+        raise ValueError("Input must be a TensorFlow SparseTensor")
+
+    degrees = tf.sparse.reduce_sum(A, axis=1)
+    n = tf.shape(A)[0]
+    indices = tf.stack([tf.range(n, dtype=tf.int64), tf.range(n, dtype=tf.int64)], axis=1)
+    
+    return tf.sparse.SparseTensor(
+        indices=indices,
+        values=degrees,
+        dense_shape=[n, n]
+    )
 
 def degree_power(A, k):
     r"""
@@ -52,6 +73,8 @@ def normalized_adjacency(A, symmetric=True):
     :param symmetric: boolean, compute symmetric normalization;
     :return: the normalized adjacency matrix.
     """
+    if isinstance(A, tf.sparse.SparseTensor):
+        return normalized_adjacency_tf(A, symmetric)
     if symmetric:
         normalized_D = degree_power(A, -0.5)
         return normalized_D.dot(A).dot(normalized_D)
@@ -59,6 +82,44 @@ def normalized_adjacency(A, symmetric=True):
         normalized_D = degree_power(A, -1.0)
         return normalized_D.dot(A)
 
+def normalized_adjacency_tf(A, symmetric=True):
+    """
+    TensorFlow implementation of normalized_adjacency for SparseTensor input.
+    
+    :param A: tf.sparse.SparseTensor, the input adjacency matrix
+    :param symmetric: boolean, compute symmetric normalization
+    :return: tf.sparse.SparseTensor, the normalized adjacency matrix
+    """
+    if not isinstance(A, tf.sparse.SparseTensor):
+        raise ValueError("Input must be a TensorFlow SparseTensor")
+
+    # Compute degree
+    D = tf.cast(tf.sparse.reduce_sum(A, axis=1), dtype=tf.float32)
+    A = tf.cast(A, dtype=tf.float32)
+
+    if symmetric:
+        # Symmetric normalization: D^(-1/2) * A * D^(-1/2)
+        D_inv_sqrt = tf.pow(D, -0.5)
+        D_inv_sqrt = tf.where(tf.math.is_inf(D_inv_sqrt), tf.zeros_like(D_inv_sqrt), D_inv_sqrt)
+        
+        D_inv_sqrt_i = tf.gather(D_inv_sqrt, A.indices[:, 0])
+        D_inv_sqrt_j = tf.gather(D_inv_sqrt, A.indices[:, 1])
+        
+        normalized_values = D_inv_sqrt_i * A.values * D_inv_sqrt_j
+    else:
+        # Asymmetric normalization: D^(-1) * A
+        D_inv = tf.pow(D, -1)
+        D_inv = tf.where(tf.math.is_inf(D_inv), tf.zeros_like(D_inv), D_inv)
+        
+        D_inv_i = tf.gather(D_inv, A.indices[:, 0])
+        
+        normalized_values = D_inv_i * A.values
+
+    return tf.sparse.SparseTensor(
+        indices=A.indices,
+        values=normalized_values,
+        dense_shape=A.dense_shape
+    )
 
 def laplacian(A):
     r"""
@@ -66,8 +127,25 @@ def laplacian(A):
     :param A: rank 2 array or sparse matrix;
     :return: the Laplacian.
     """
+    if isinstance(A, tf.sparse.SparseTensor):
+        return degree_matrix_tf(A) - A
     return degree_matrix(A) - A
 
+def normalized_laplacian_tf(A, symmetric=True):
+    """
+    TensorFlow implementation of normalized_laplacian for SparseTensor input.
+    
+    :param A: tf.sparse.SparseTensor, the input adjacency matrix
+    :param symmetric: boolean, compute symmetric normalization
+    :return: tf.sparse.SparseTensor, the normalized Laplacian
+    """
+    if not isinstance(A, tf.sparse.SparseTensor):
+        raise ValueError("Input must be a TensorFlow SparseTensor")
+
+    n = tf.shape(A)[0]
+    I = tf.sparse.eye(n, dtype=A.dtype)
+    normalized_adj = normalized_adjacency_tf(A, symmetric=symmetric)
+    return I - normalized_adj
 
 def normalized_laplacian(A, symmetric=True):
     r"""
@@ -77,6 +155,8 @@ def normalized_laplacian(A, symmetric=True):
     :param symmetric: boolean, compute symmetric normalization;
     :return: the normalized Laplacian.
     """
+    if isinstance(A, tf.sparse.SparseTensor):
+        return normalized_laplacian_tf(A, symmetric)
     if sp.issparse(A):
         I = sp.eye(A.shape[-1], dtype=A.dtype)
     else:
@@ -315,6 +395,33 @@ def line_graph(incidence):
     identity = tf.eye(num_rows)
     return incidence_sq - identity * 2
 
+def chebyshev_polynomial_tf(X, k):
+    """
+    TensorFlow implementation of chebyshev_polynomial for SparseTensor input.
+    
+    :param X: tf.sparse.SparseTensor, input matrix
+    :param k: integer, the order up to which compute the polynomials
+    :return: a list of k + 1 SparseTensors with one element for each degree of the polynomial
+    """
+    if not isinstance(X, tf.sparse.SparseTensor):
+        raise ValueError("Input must be a TensorFlow SparseTensor")
+
+    T_k = []
+    n = tf.shape(X)[0]
+    
+    # T_0 = I
+    T_k.append(tf.sparse.eye(n, dtype=X.dtype))
+    
+    # T_1 = X
+    T_k.append(X)
+
+    def chebyshev_recurrence(T_k_minus_one, T_k_minus_two, X):
+        return 2 * tf.sparse.sparse_dense_matmul(X, T_k_minus_one) - T_k_minus_two
+
+    for _ in range(2, k + 1):
+        T_k.append(chebyshev_recurrence(T_k[-1], T_k[-2], X))
+
+    return T_k
 
 def chebyshev_polynomial(X, k):
     """
@@ -324,6 +431,8 @@ def chebyshev_polynomial(X, k):
     :return: a list of k + 1 arrays or sparse matrices with one element for each
     degree of the polynomial.
     """
+    if isinstance(X, tf.sparse.SparseTensor):
+        return chebyshev_polynomial_tf(X, k)
     T_k = list()
     if sp.issparse(X):
         T_k.append(sp.eye(X.shape[0], dtype=X.dtype).tocsr())
@@ -355,6 +464,8 @@ def chebyshev_filter(A, k, symmetric=True):
     :return: a list of k + 1 arrays or sparse matrices with one element for each
     degree of the polynomial.
     """
+    if isinstance(A, tf.sparse.SparseTensor):
+        return chebyshev_filter_tf(A, k, symmetric)
     normalized_adj = normalized_adjacency(A, symmetric)
     if sp.issparse(A):
         I = sp.eye(A.shape[0], dtype=A.dtype)
@@ -375,6 +486,37 @@ def chebyshev_filter(A, k, symmetric=True):
 
     return T_k
 
+def chebyshev_filter_tf(A, k, symmetric=True):
+    """
+    TensorFlow implementation of chebyshev_filter for SparseTensor input.
+    
+    :param A: tf.sparse.SparseTensor, the input adjacency matrix
+    :param k: integer, the order of the Chebyshev polynomial
+    :param symmetric: boolean, whether to use symmetric normalization
+    :return: a list of k + 1 SparseTensors with one element for each degree of the polynomial
+    """
+    if not isinstance(A, tf.sparse.SparseTensor):
+        raise ValueError("Input must be a TensorFlow SparseTensor")
+
+    normalized_adj = normalized_adjacency_tf(A, symmetric)
+    n = tf.shape(A)[0]
+    I = tf.sparse.eye(n, dtype=A.dtype)
+    L = I - normalized_adj  # Compute Laplacian
+
+    # Rescale Laplacian
+    L_scaled = rescale_laplacian_tf(L)
+
+    # Compute Chebyshev polynomial approximation
+    T_k = chebyshev_polynomial_tf(L_scaled, k)
+
+    return T_k
+
+def rescale_laplacian_tf(L):
+    """
+    Rescale the Laplacian eigenvalues to [-1, 1].
+    """
+    max_eigenval = tf.sparse.reduce_max(L)
+    return (2.0 * L / max_eigenval) - tf.sparse.eye(tf.shape(L)[0], dtype=L.dtype)
 
 def add_self_loops(a, value=1):
     """
