@@ -124,8 +124,8 @@ def gcn_filter_tf(A, symmetric=True):
 
     # Add self-loops
     n = tf.shape(A)[0]
-    edge_index = tf.concat([A.indices, tf.stack([tf.range(n, dtype=type(A.indices)), tf.range(n, dtype=type(A.indices))], axis=1)], axis=0)
-    edge_weight = tf.concat([A.values, tf.ones(n, dtype=type(A.values))], axis=0)
+    edge_index = tf.concat([A.indices, tf.stack([tf.range(n, dtype=A.indices.dtype), tf.range(n, dtype=A.indices.dtype)], axis=1)], axis=0)
+    edge_weight = tf.concat([A.values, tf.ones(n, dtype=A.indices.dtype)], axis=0)
     
     A_hat = tf.sparse.SparseTensor(
         indices=edge_index,
