@@ -142,8 +142,11 @@ def gcn_filter_tf(A, symmetric=True):
         D_inv_sqrt = tf.pow(D, -0.5)
         D_inv_sqrt = tf.where(tf.math.is_inf(D_inv_sqrt), tf.zeros_like(D_inv_sqrt), D_inv_sqrt)
         
-        # Efficiently multiply D_inv_sqrt with A_hat
-        edge_weight_norm = D_inv_sqrt[A_hat.indices[:, 0]] * A_hat.values * D_inv_sqrt[A_hat.indices[:, 1]]
+        # Use tf.gather to index into D_inv_sqrt
+        D_inv_sqrt_i = tf.gather(D_inv_sqrt, A_hat.indices[:, 0])
+        D_inv_sqrt_j = tf.gather(D_inv_sqrt, A_hat.indices[:, 1])
+        
+        edge_weight_norm = D_inv_sqrt_i * A_hat.values * D_inv_sqrt_j
         
         return tf.sparse.SparseTensor(
             indices=A_hat.indices,
@@ -155,14 +158,17 @@ def gcn_filter_tf(A, symmetric=True):
         D_inv = tf.pow(D, -1)
         D_inv = tf.where(tf.math.is_inf(D_inv), tf.zeros_like(D_inv), D_inv)
         
-        # Efficiently multiply D_inv with A_hat
-        edge_weight_norm = D_inv[A_hat.indices[:, 0]] * A_hat.values
+        # Use tf.gather to index into D_inv
+        D_inv_i = tf.gather(D_inv, A_hat.indices[:, 0])
+        
+        edge_weight_norm = D_inv_i * A_hat.values
         
         return tf.sparse.SparseTensor(
             indices=A_hat.indices,
             values=edge_weight_norm,
             dense_shape=A_hat.dense_shape
         )
+
 
 def gcn_filter(A, symmetric=True):
     r"""
