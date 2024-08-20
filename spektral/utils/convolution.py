@@ -135,7 +135,7 @@ def gcn_filter_tf(A, symmetric=True):
     A_hat = tf.sparse.reorder(A_hat)  # Ensure the SparseTensor is ordered
 
     # Compute node degrees
-    D = tf.sparse.reduce_sum(A_hat, axis=1)
+    D = tf.cast(tf.sparse.reduce_sum(A_hat, axis=1), dtype=tf.float32)
 
     if symmetric:
         # Symmetric normalization: D^(-1/2) * A * D^(-1/2)
