@@ -143,8 +143,8 @@ def normalized_laplacian_tf(A, symmetric=True):
         raise ValueError("Input must be a TensorFlow SparseTensor")
 
     n = tf.shape(A)[0]
-    I = tf.sparse.eye(n, dtype=A.values.dtype)
     normalized_adj = normalized_adjacency_tf(A, symmetric=symmetric)
+    I = tf.sparse.eye(n, dtype=normalized_adj.dtype)
     return tf.sparse.add(I, tf.sparse.map_values(tf.negative, normalized_adj))
 
 def normalized_laplacian(A, symmetric=True):
