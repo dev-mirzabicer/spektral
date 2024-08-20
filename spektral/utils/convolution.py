@@ -174,6 +174,8 @@ def rescale_laplacian(L, lmax=None):
     If scalar, use this value as largest eigenvalue when rescaling.
     :return:
     """
+    if isinstance(L, tf.sparse.SparseTensor):
+        return rescale_laplacian_tf(L)
     if lmax is None:
         try:
             if sp.issparse(L):
