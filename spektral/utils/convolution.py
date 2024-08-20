@@ -112,47 +112,57 @@ def rescale_laplacian(L, lmax=None):
 
 def gcn_filter_tf(A, symmetric=True):
     """
-    Computes the graph filter described in Kipf & Welling (2017) for a tf.SparseTensor.
+    TensorFlow implementation of gcn_filter for SparseTensor input.
     
-    :param A: tf.SparseTensor with rank 2
-    :param symmetric: boolean, whether to normalize the matrix as D^(-1/2)AD^(-1/2) or as D^(-1)A
-    :return: tf.SparseTensor
+    :param A: tf.sparse.SparseTensor, the input adjacency matrix
+    :param symmetric: boolean, whether to normalize the matrix as
+        D^(-1/2) * A * D^(-1/2) (symmetric=True) or as D^(-1) * A (symmetric=False)
+    :return: tf.sparse.SparseTensor, the filtered adjacency matrix
     """
+    if not isinstance(A, tf.sparse.SparseTensor):
+        raise ValueError("Input must be a TensorFlow SparseTensor")
+
     # Add self-loops
-    eye = tf.sparse.eye(A.shape[0], dtype=A.dtype)
-    A_loop = tf.sparse.add(A, eye)
+    n = tf.shape(A)[0]
+    edge_index = tf.concat([A.indices, tf.stack([tf.range(n), tf.range(n)], axis=1)], axis=0)
+    edge_weight = tf.concat([A.values, tf.ones(n)], axis=0)
     
-    # Compute degree matrix
-    D = tf.sparse.reduce_sum(A_loop, axis=1)
-    
+    A_hat = tf.sparse.SparseTensor(
+        indices=edge_index,
+        values=edge_weight,
+        dense_shape=[n, n]
+    )
+    A_hat = tf.sparse.reorder(A_hat)  # Ensure the SparseTensor is ordered
+
+    # Compute node degrees
+    D = tf.sparse.reduce_sum(A_hat, axis=1)
+
     if symmetric:
-        # Compute D^(-1/2)
+        # Symmetric normalization: D^(-1/2) * A * D^(-1/2)
         D_inv_sqrt = tf.pow(D, -0.5)
         D_inv_sqrt = tf.where(tf.math.is_inf(D_inv_sqrt), tf.zeros_like(D_inv_sqrt), D_inv_sqrt)
         
-        # Create sparse diagonal matrix
-        D_inv_sqrt_mat = tf.sparse.SparseTensor(
-            indices=tf.cast(tf.stack([tf.range(A.shape[0]), tf.range(A.shape[0])], axis=1), tf.int64),
-            values=D_inv_sqrt,
-            dense_shape=tf.cast(A.shape, tf.int64)
-        )
+        # Efficiently multiply D_inv_sqrt with A_hat
+        edge_weight_norm = D_inv_sqrt[A_hat.indices[:, 0]] * A_hat.values * D_inv_sqrt[A_hat.indices[:, 1]]
         
-        # Compute D^(-1/2) A D^(-1/2)
-        return tf.sparse.sparse_dense_matmul(tf.sparse.sparse_dense_matmul(D_inv_sqrt_mat, A_loop), D_inv_sqrt_mat)
+        return tf.sparse.SparseTensor(
+            indices=A_hat.indices,
+            values=edge_weight_norm,
+            dense_shape=A_hat.dense_shape
+        )
     else:
-        # Compute D^(-1)
+        # Asymmetric normalization: D^(-1) * A
         D_inv = tf.pow(D, -1)
         D_inv = tf.where(tf.math.is_inf(D_inv), tf.zeros_like(D_inv), D_inv)
         
-        # Create sparse diagonal matrix
-        D_inv_mat = tf.sparse.SparseTensor(
-            indices=tf.cast(tf.stack([tf.range(A.shape[0]), tf.range(A.shape[0])], axis=1), tf.int64),
-            values=D_inv,
-            dense_shape=tf.cast(A.shape, tf.int64)
-        )
+        # Efficiently multiply D_inv with A_hat
+        edge_weight_norm = D_inv[A_hat.indices[:, 0]] * A_hat.values
         
-        # Compute D^(-1) A
-        return tf.sparse.sparse_dense_matmul(D_inv_mat, A_loop)
+        return tf.sparse.SparseTensor(
+            indices=A_hat.indices,
+            values=edge_weight_norm,
+            dense_shape=A_hat.dense_shape
+        )
 
 def gcn_filter(A, symmetric=True):
     r"""
